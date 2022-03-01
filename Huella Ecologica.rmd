@@ -1,0 +1,821 @@
+---
+title: "Practica Final Modulo 5. Victor Manuel Ferreira Martinez"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+- Paquetes necesarios:
+
+```{r}
+library(summarytools)
+library(ggplot2)
+library(gmodels)
+library(DataExplorer)
+library(tidyverse)
+library(visdat)
+library(normtest)
+library(car)
+library(kableExtra)
+library(corrplot)
+library(nortest)
+library(MASS)
+library(caret)
+```
+
+- Tras cargar los diferentes paquetes, pasamos a elegir dataframe y hacer una pequeña introducción del mismo.
+
+#### INTRODUCCION BASE DE DATOS
+
+La base de datos utilizada es un dataset donde vienen recogidas las mediciones relacionadas con el **Indice de Desarrollo Humano** y la **Huella Ecológica Total** de 188 paises, que se encuentra dentro del plan de las naciones unidas de medición al desarrollo, y que se puede encontrar en (https://www.kaggle.com/footprintnetwork/ecological-footprint). Los datos pertenecen a las mediciones de 2016. Le daremos en primera estancia el nombre de huella_eco. Detallar que hemos optado en cargar el paquete desde el entorno de R, y que el nombre que recibe es countries.
+
+```{r}
+setwd("C:/Users/Propioetario/Desktop/Master Businees Analytics and Data Science/Modulo 5. Estadistica para cientifico de datos/RStudio/Tema5 Estadistica")
+```
+
+```{r}
+countries <- read_csv('countries.csv')
+```
+
+```{r}
+countries
+huella_eco = countries
+```
+
+#### PASO 1. Definir un objetivo de estudio
+
+1. ¿Qué problema se quiere solucionar con estos datos?;
+2. ¿Qué significan las variables?;
+3. ¿Que tipo de variables hay?
+4. Definir un objetivo que ayude a solucionar el problema
+
+
+1. La hipotesis planteada radica en demostrar la relación entre el Indice de desarrollo humano y la Huella Ecologica Total. Demostrar esta relación podría darnos diferentes aproximaciones. El Indice de Desarrollo Humano es un índice indicativo del nivel de desarrollo de un pais. Dicho nivel de desarrollo puede guardar una relación con la cantidad de huella ecológica necesaria para cada pais atendiendo al nivel de dicho índice. Por tanto, es planteable una reformulación de dicho indice, ya que de estar ligado a un mayor requerimiento ecológico podría indicar que este nivel de desarrollo tiene un coste que podria replantear la definición  propia de desarrollo.
+
+*2 y 3. Antes de pasar a definir todas las variables, se procede a hacer una pequeña visualización introductoria de las mismas.
+
+```{r}
+head(huella_eco,20)
+dim(huella_eco)
+ncol(huella_eco)
+names(huella_eco)
+```
+
+- A partir de aquí se procede a hacer una descripcion de cada una de las variables, asi como indicar que tipo de variable son. Tras esto, se decidirá el objetivo en cuestión y que variables serán claves para la consecución del mismo.
+
+**Country** - Nombre del pais - **VARIABLE CATEGORICA NOMINAL**
+
+**Region** - Región a la que pertenece el pais - **VARIABLE CATEGORICA NOMINAL**
+
+**Population** - Población en millones de habitantes - **VARIABLE CUANTITATIVA CONTINUA**
+
+**Hdi - Indice de desarrollo humano** - Se trata de una variable nacida en el Programa de Naciones Unidas para el desarrollo, donde se tienen en cuenta tres variables diferentes para sacar un nivel de desarrollo estimado, destacando, la esperanza de vida, la educación, o el ingreso per capita. Puede tomar valores entre 0 y 1. Su calculo puede ser comprobado en (http://hdr.undp.org/en/data). Decir a que tipo de variable pertenece esta variable, puede ser confuso, pero la realidad es que entre 0 y 1, pueden tomar cualquier numero de valores, incontables. - **VARIABLE CUANTITATIVA CONTINUA**
+
+Se trata de una variable categorizable, y que por tanto puede ser transformada en **VARIABLE CATEGORICA ORDINAL** con estos niveles ya estandarizados por las Naciones Unidas.
+
+- Desarrollo humano muy alto (“High Human Development”), aquellos con niveles superiores al 0,80.
+- Desarrollo humano alto (“Medium Human Development”), cuyos niveles rondan entre 0,70 y 0,80.
+- Desarrollo humano medio (“Medium Human Development”), cuyos niveles rondan entre 0,55 y 0,70.
+- Desarrollo humano bajo (“Low Human Development”), ya con una valoración inferior a 0,55
+
+\**Anotación** (Se utilizara esta anotación si finalmente trasformaramos dicha variable en una categorica ordinal).\
+
+**Gdp per Capita** - Relación entre el valor total de todos los bienes y servicios finales generados durante un año por la economía de una nación o estado y el número de sus habitantes en ese año. Puede ser expresado en valores de mercado o en valores básicos. Dicho de otra manera, es cantidad de riqueza total generada por un pais, que le corresponde a cada habitante de dicho pais - **VARIABLE CUANTITATIVA CONTINUA**
+
+La tierra contiene 12.2 billones de hectareas productivas, que son categorizadas en 5 tipos, además, estas areas darian soporte a la demanda de los 5 tipos de huellas que aqui se describen.
+
+**Cropland y Cropland Footprint** - 
+- Cropland es la mas productiva de las areas usadas para producir comida y fibras de consumo humano, alimento para el ganado, aceite de cultivo y caucho.
+
+- Cropland Footprint es la cantidad de hectareas que se requieren de Cropland para cubrir las necesidades generadas por el ser humano. **VARIABLES CUANTITATIVAS CONTINUAS**
+
+
+**Grazing Land y Grazing Footprint** -  
+-Grazing Land son las tierras de pastoreo utilizadas para criar ganado del que obtener carne, lacteos, piel y lana. 
+
+-Grazing Footprint de pastoreo se calcula comparando la cantidad de alimento para ganado disponible en un país con la cantidad de alimento requerida para todo el ganado en ese año, y se supone que el resto de la demanda de alimento proviene de las tierras de pastoreo. **VARIABLES CUANTITATIVAS CONTINUAS**
+
+
+**Fishing Water y Fish Footprint** - La Huella de caladeros se calcula sobre la base de estimaciones de la captura máxima sostenible para una variedad de especies de peces. Estas estimaciones de captura sostenible se convierten en una masa equivalente de producción primaria basada en los niveles tróficos de las distintas especies. Esta estimación de la producción primaria máxima aprovechable se divide luego entre las áreas de la plataforma continental del mundo. Se incluye el pescado capturado y utilizado en mezclas de piensos para la acuicultura. **VARIABLES CUANTITATIVAS CONTINUAS**
+
+**Forest Land y Forest Footprint** - Ofrecen dos servicios: La huella de productos forestales , que se calcula en función de la cantidad de madera, pulpa, productos de madera y leña consumida por un país anualmente. También tiene en cuenta la  huella de carbono , que representa las emisiones de dióxido de carbono de la quema de combustibles fósiles. La Huella de Carbono también incluye el carbono incorporado en bienes importados. Está representado por el área necesaria para secuestrar estas emisiones de carbono. El componente Huella de carbono de la Huella ecológica se calcula como la cantidad de tierra forestal necesaria para absorber estas emisiones de dióxido de carbono. **VARIABLES CUANTITATIVAS CONTINUAS**
+
+**Urban Land** - Se trata del area cubierta por infraestructura humana. Este area puede ocupar el area que anteriormente ha sido Cropland, y tiene un efecto sobre las mediciones echas en el data set. **VARIABLE CUANTITATIVA CONTINUA**
+
+**Carbon Footprint**- La huella de carbono se mide en emisiones de C02 asociadas a la quema de combustibles fosiles. En terminos de huella ecológica, se trata de la cantidad de area productiva necesaria para absober la cantidad de CO2 que se emite. **VARIABLE CUANTITATIVA CONTINUA**
+
+
+**Total Ecological Footprint** - Según W. Rees y M. Wackernagel (1995), la Huella Ecológica HE, es definida como “el área o territorio ecológicamente productivo (cultivos, pastos, bosques o ecosistema acuático) necesaria para producir los recursos utilizados y para asimilar los residuos producidos por una población definida con un nivel de vida específico indefinidamente, donde sea que se encuentre esta área”. En otras palabras, es un indicador biofísico delimpacto de una población determinada, de acuerdo con su estilo de vida y la productividad de su espacio físico, dados por los consumos y la tecnología utilizada - **VARIABLE CUANTITATIVA CONTINUA**
+
+**Total Biocapacity** - La biocapacidad, por su parte, es la superficie de tierra disponible para un determinado nivel de producción y también se expresa en unidades de hectáreas globales. Esta hectarea global, equivale a un hectarea de espacio biologicamente productivo. Hay que tener en cuenta que cuenta con un limite temporal de medida, es decir, puede variar cada año teniendo en cuenta numerosas variables. Esta estrechamente ligada a la capacidad de los ecosistemas para regenerarse y poder seguir satisfaciendo las necesidades de la población **VARIABLE CUANTITATIVA CONTINUA**
+
+**Biocapacity Deficit or Reserve** - Se trata de el resultado de que la huella ecológica exceda la biocapacidad de la zona donde se esta ejerciendo la presion medida en la huella ecológica. Resulta de restar la Biocapacidad - la huella Ecológica, y puede ser una variable que tome valores negativos. Dichos valores indicaran que la biocapacidad ha sido sobrepasada. - **VARIABLE CUANTITATIVA CONTINUA**
+
+**Earths required** - Tierras requeridas o necesarias atendiendo al modo y nivel de consumo de un pais. Se trata de unidades equivalentes a planetas tierras - **VARIABLE CUANTITATIVA CONTINUA**
+
+**Countries required** - Paises propios requeridos o necesarios atendiendo al modo y nivel de consumo de un pais. Se trata de unidades equivalentes a paises - **VARIABLE CUANTITATIVA CONTINUA**
+
+**Data Quality** - Por el modelo de recolección de los datos de cada país participante en la recolección que permite obtener lo recogido en la base de datos - La información viene detallada aqui (https://www.footprintnetwork.org/data-quality-scores/)
+
+4. El objetivo es demostrar la relación entre, HDI(Indice de desarrollo humano) y Total Ecological Footprint (Huella de Carbono)
+
+HO: Son las variables HDI y Total Ecological Footprint independientes, y por tanto los valores de  Huella Ecologica Total no tienen relación alguna con el HDI.
+
+HI: Son las variables HDI y Total Ecological Footprint dependientes, y por tanto los valores de Huella Ecologica Total no tienen relación alguna con el HDI.
+
+#### PASO 2. Exploración de datos
+
+2.1 Crear los gráficos más apropiados
+2.2 Interpretar los gráficos
+2.3 Encontrar los primeros indicios y sacar las preconclusiones
+2.4 Listar por orden de importancia los indicios que han desvelado los gráficos
+
+- Este apartado trata de hacer una exploración de los datos, ya sea a través de visualización, o del análisis de los mismos. Por tanto, se darán las explicaciones que se consideren pertientes a lo largo de dicho apartado. Además, indicar que se procederá a la transformación o limpieza que se crea pertinente. En conjunto este apartado pretende ser un EDA el cual seguirá el orden que se crea oportuno, con la intención de ir sacando las conclusiones necesarias para alcanzar el objetivo de la práctica.
+
+- Utilizamos glimpse de **summarytools** para echar un primer vistazo al dataset.
+
+```{r}
+glimpse(huella_eco)
+```
+
+- Otro vistazo al data set, nos permitirá tomar ciertas decisiones que se detallaran a continuación.
+
+```{r}
+summary(huella_eco)
+```
+
+- Llama la atencion que GDP per capita no es un tipo de variable númerica, por lo que habría que transformarla para poder visualizarla y compararla si fuera necesario. 
+
+- Llama la atención su nombre el cual podria dar problemas, al igual que el de población.
+
+- Llama la atencion la existencia de nulos, en nuestra variable de interés.
+
+Por tanto antes de proceder a la visualización y la elección de variables mas el análisis inferencial:
+
+1. Cambiar el nombre de las columnas sobre el Pib y la Población.
+
+2. Tratar los nulos de las variables como se crea conveniente de manera justificada.
+
+3. Tratar la variable Pib, para transformarla a una variable numerica en nuestro data frame y poder trabajar con ella.
+
+- Tras esto:
+
+1. Categorizar la variable de interés, para que nos ayude en nuestro análisis.
+
+2. Comprobar la relación de las diferentes variables de manera visual.
+
+3. Intentar saber como se distribuyen nuestras variables, y la relación que tienen entre ellas, normalizandolas si fuera necesario y volviendo a visualizarlas.
+
+```{r}
+names(huella_eco)
+```
+
+```{r}
+names(huella_eco) [3] = "Poblacion"
+names(huella_eco) [5] = "PibPerCap"
+```
+
+- El caso de la variable PibPerCap es especial en este dataset. En primer lugar no es una variable númerica, y además contiene simbolos que habría que eliminar, en este caso $. De esta manera podriamos tratarla sin problemas.
+
+- Por otro lado, podemos observar la existencia de valores nulos en el dataset, por tanto lo primero que se hara es centrarnos en el análisis de dichos nulos.
+
+- Utilizamos el paquete **Data Explorer** para ver el porcentaje de nulos por variables
+
+```{r}
+plot_missing(huella_eco)
+```
+
+- Como se puede comprobar, **HDI**, tiene un 8,5% de valores nulos, que será necesario tratar. En cuanto a los demas datos, podriamos igualar a 0 dichos valores, o incluso sacar una media en comparación con su Huella Ecologica Total. Quizás a través de calculo de media de una variable respecto a la otra de manera independiente. Sin embargo para lo que nos atañe en este estudio no será necesario. Las métricas que miden la huella de manera individual y la capacidad productiva de la tierra, ya se incluyen en los indices total de Huella Ecólogica Total, Biocapacidad, Tierras requeridas y Deficit de la Biocapacidad.
+
+- Procedemos a evaluar la cantidad de nulos y la posición donde se encuentran, para saber a que paises pertenecen dichos valores inexistentes, y poder aproximar la mejor manera de tratarlos.
+
+```{r}
+which(is.na(huella_eco$HDI))
+```
+
+- En total hay 16 valores nulos en la variable HDI, a los que podemos acceder, para saber que paises no cuentan con valor para el Índice de Desarrollo Humano, nuestra variable de interés.
+
+```{r}
+huella_eco[c(8,19,25,34,44,63,64,72,92,109,116,121,124,140,157,185),]
+```
+
+- Eliminaremos los paises que contienen valores nulos para el Indice de Desarrollo Humano, que por otro lado son en un su mayoria islas de pequeño tamaño, donde seguramente las mediciones se recojan en paises como Francia, o Inglaterra si se tratan de territorios de ultra mar. Las excepciones serian, Corea del Norte, Costa de Marfil y Somalia, territorios de envergadura por extension y actividad, a las que habría que inferirles los datos que hallemos en este estudio. Mencionar que esto eliminará valores de otras variables en el Data Set, pero como nos interesa comparar y comprobar como se comportan dichas variables respecto a este indice, y la relacion entre ellas, se procede a la eliminación. En cualquier caso es posible que hubiera sido mejor sustituir estos valores por cero, o por medias. Tras  hecho un estudio previo de que Indice de Desarrollo Humano tienen estos paises en años donde se haya medido dicho valor, sin embargo, a fecha de hoy, siguen sin existir mediciones para estos paises.
+
+```{r}
+idh = huella_eco[!is.na(huella_eco$HDI),]
+idh
+dim(idh)
+```
+- En el caso del PibPerCap, tras la eliminación de los valores nulos del HDI, el único valor vacio pertenece al Pib de la Republica Arabiga de Siria, que hemos tomado de fuentes externas. En este caso son 709 dolares.
+
+```{r}
+idh$PibPerCap[is.na(idh$PibPerCap)] <- "$709.00"
+idh
+```
+
+- Para poder transformar la variable a númerica, el primer tratamiento que habra que darle es eliminar el dolar al comienzo de cada linea de datos. Despeus tendremos problemas con la coma, por lo que habrá que cambiarla por un punto.
+
+```{r}
+PibPerCap_ <- sub("[$]", "", idh$PibPerCap)
+PibPerCap_
+```
+
+```{r}
+PibPerCap_ <- sub("[,]", "", PibPerCap_)
+PibPerCap_
+```
+
+- Desde aquí se puede cambiar el valor del Pib per Capita a númerico, y trabajar con ello. Se añade al data frame.
+
+```{r}
+PibPerCap_ <- as.numeric(PibPerCap_)
+```
+
+- Se elimina la columna antigua con los datos de PIB, para añadir la nueva transformada.
+
+```{r}
+idh <- idh[-5]
+idh <- cbind(idh, PibPerCap_)
+```
+
+```{r}
+head(idh)
+```
+
+- Atendiendo a la estructura de nuestra variable de interés se proceder a categorizarla. La intención es buscar que nos facilite el análisis de la misma. De este manera se tranforma dicha variable a categorica ordinal siguiendo los estandares definidos en el apartado 1. Finalmente se añade al dataframe, con el nombre de HDI_CAT
+
+```{r}
+HDI_CAT = cut(idh$HDI, breaks = c(0,0.55,0.70,0.80, 1), labels = c("Bajo", "Medio", "Alto", "Muy Alto"), include.lowest = TRUE)
+HDI_CAT
+idh = cbind(idh, HDI_CAT)
+```
+
+- Comprobamos que hemos añadido la nueva variable categorizada.
+
+```{r}
+head(idh,10)
+summary(idh)
+```
+
+- Tras analizar detenidamente de manera teorica las variables, se toma le decision de no tener en cuenta las variables relacionadas con las diferentes huellas ni tampoco con la cantidad de tierra productiva. La razón es sencillamente que al estar implicitas en los sumatorios totales, se prefieren dejar fuera del estudio.
+
+- Podriamos hacer un select para el nuevo dataset, pero el hecho de eliminar las columnas de esta forma, deja patente cuales se eliminan y porque se eliminan. Además quitamos Data Quality, por ser una variable que no tiene ningun interés en nuestro estudio y countries required, ya que esta última ya va implicita en tierras requeridas, otra variable con la que trabajaremos.
+
+```{r}
+idh$`Cropland Footprint` <- NULL
+idh$Cropland <- NULL
+idh$`Forest Footprint` <- NULL
+idh$`Grazing Footprint` <- NULL
+idh$`Fish Footprint` <- NULL
+idh$`Carbon Footprint` <- NULL
+idh$`Grazing Land` <- NULL
+idh$`Forest Land` <- NULL
+idh$`Fishing Water` <- NULL
+idh$`Urban Land` <- NULL
+idh$`Data Quality` <- NULL
+```
+
+```{r}
+idh$`Countries Required` <- NULL
+```
+
+
+```{r}
+head(idh,10)
+```
+
+- A partir de aquí, vamos a obtener la media, desviación tipica de cada variable de interés que serán necesarias para el futuro ánalisis de los datos. 
+
+```{r}
+meanh = mean(idh$HDI)
+meanh
+meanf = mean(idh$`Total Ecological Footprint`)
+meanf
+meanb = mean(idh$`Total Biocapacity`)
+meanb
+meane = mean(idh$`Earths Required`)
+meane
+meanp = mean(idh$Poblacion)
+meanp
+meang = mean(idh$PibPerCap_)
+meang
+meand = mean(idh$`Biocapacity Deficit or Reserve`)
+meand
+```
+
+- Llama la atención que segun los datos obtenidos, la media de HDI en el mundo esta en nivel medio, que la huella ecológica esta por encima de 3, y curiosamente al borde de la media de la biocapacidad, y que la manera de consumir del mundo atendiendo a todo esto necesitaria 1,8 planetas de media para satisfacer dicho consumo.
+
+```{r}
+sdh = sd(idh$HDI)
+sdh
+sdf = sd(idh$`Total Ecological Footprint`)
+sdf
+sdb = sd(idh$`Total Biocapacity`)
+sdb
+sde = sd(idh$`Earths Required`)
+sde
+sdp = sd(idh$Poblacion)
+sdp
+sdg = sd(idh$PibPerCap_)
+sdg
+sdd = sd(idh$`Biocapacity Deficit or Reserve`)
+sdd
+```
+
+**Las muestras que tenemos, son el total de la población de las cuales se tienen datos, por tanto calcular los intervalos de confianza de estadísticos como la media quizás no fuera necesario, aun asi puede hacerse**
+
+```{r}
+valores <- idh %>% dplyr::select("Poblacion", "HDI","Total Ecological Footprint", "Total Biocapacity", "Biocapacity Deficit or Reserve", "Earths Required", "PibPerCap_")
+
+sapply(valores, function(x) round(t.test((x), conf.level = 0.95)$p.value,2))
+```
+
+
+- Se podría indicar con una seguridad de al menos el 95% que dentro de los rangos estimados se encuentra la media de cada muestra de cada variable analizada. En este caso la muestra es la población, estos análisis son clave cuando se trata de muestras de una población, donde es necesario encontrar estos intervalos de confianza. 
+
+Visualización de variables
+
+- Utilizando la función creada en el seminario impartido en relación al analisis exploratorio. Se ha moficado el contenido para poder hacer una visualización de cada una de aquellas variables que nos interesan para nuestro estudio.
+
+```{r}
+for (columna in 3:ncol(idh)){
+  if (class(idh[,columna]) == "factor"){
+    # Por defecto se mostrará un gráfico de barras.
+    plot(idh[,columna], 
+         col = rainbow(length(levels(idh[,columna]))),
+         las = 1,
+         main = paste("Diagrama de barras de: ", colnames(idh[columna])))
+  } else {
+    # Para las variables numéricas, histograma.
+    hist(idh[, columna], 
+         border = "black", 
+         col = "orange", 
+         las = 1, 
+         main = paste("Histograma de: ", colnames(idh[columna])),
+         xlab  = colnames(idh[columna]))
+  }
+}
+```
+
+1.*POBLACION*, la mayoria de la población mundial esta en un baremo entre el 0 y los 250 millones de habitantes. Unos pocos superan esta cifra, con los casos especiales de China e India, por encima de los 1500 millones.
+
+2. **HDI**. el indice de desarrollo humano tiene su mayor porcentaje en paises con un nivel alto, pero esto se aprecia mejor en el análisis de nuestra variable categorica. Como se puede apreciar no llega a seguir una distribución normal a simple vista, si no que parece que existe asimetria hacia la derecha.
+
+3. **TOTAL ECOLOGICAL FOOTPRINT**, como se puede comprobar la mayoría de paises están entre el 0 y 5gha(Hectares globales), con excepciones por encima del 10. Aquí se encontrarian unos pocos paises donde su modelo de vida tiene unos requerimientos ecólogicos muy altos. Llama la atención que la mayoría de paises los podemos encontrar en requerimientos bajos. Sin embargo, sabemos que el requerimiento global supera la capacidad del plante, esto lleva a pensar que el nivel de requerimiento de algunos paises, es el que aporta la mayor parte del porcentaje del requerimiento total.
+
+4. **BIOCAPACIDAD TOTAL**, la mayoria de los territorios tienen una Biocapcidad menor a 10hag, con alguna excepciones por encima de 20, 60, y 80, que coincidirán con aquellos paises cuya riqueza natural es muy grande o a vecés con territorios de pequeño tamaño donde las mediciones no estaban todavia ajustadas en el año 2016. 
+
+5. **DEFICIT ECOLÓGICO**, este gráfico arroja datos muy interesantes. Del total de 172 paises, mas de 120 estan en deficit ecológico, es decir, su huella ecológica es superior a su biocapacidad. Tan solo 50 paises en el mundo estan en superhabit. Podemos ver que algunos paises tienen un superhabit importante, pero se trata de tan solo 4 paises. 
+
+```{r}
+idh$Country[idh$`Biocapacity Deficit or Reserve` > 10]
+```
+
+- Esta pequeña exploración de que paises son, nos podria aproximar que su requerimiento ecólogico esta muy por debajo de su biocapacidad. ¿Tendra que ver con su indice de desarrollo?
+
+6. **CANTIDAD DE TIERRAS REQUERIDAS**, como se puede observar la mayoría de paises estan entre 0 y 2 tierras según su requerimiento ecológico. Aun asi no es despreciable la cifra de paises que si todo el globo consumiera como ellos, se necesitarian 4 planetas para cubrir los requerimientos.
+
+```{r}
+idh$Country[idh$`Earths Required` > 4]
+idh$Country[idh$`Earths Required` > 9]
+```
+
+7. **HDI CATEGORIZADA**
+
+- Vamos a utilizar nuestra variable categorica recien creada para intentar sacar alguna conclusión a partir de la visualización y de este modo interpretar si encontraremos relaciones entre las variables cuando apliquemos nuestros modelos.
+
+```{r}
+idh_freacum = table(idh$HDI_CAT)
+idh_freacum
+prop.table(idh_freacum)
+```
+
+- Como podemos ver la frecuencia absoluta nos dice que hay una distribución bastante homogenea de paises en cada rango de nivel de Indice de desarrollo humano. Es decir los paises pertenecen en proporciones parecidas a los diferentes niveles de Idh, algo que podemos comprobar con las frecuencias relativas.
+
+- Del total de paises, el 30% de los paises tienen un IDH alto, el 25% de los paises un IDH Muy alto, el 25% de los paises un IDH bajo, y un 19,8% tienen un IDH medio. Destacar que los niveles muy alto y bajo, tienen la misma proporción de paises. 
+
+```{r}
+barplot(idh_freacum, xlab = "Indice de Desarrollo Humano", ylab = "Numero de Paises", main = "Distribucion de las frecuencias acumuladas del idh", col = c("orange1", "orange2", "orange3", "orange4"))
+```
+
+- Si observamos este gráfico de barras, podemos ver como la mayor proporción de paises tienen índices de desarrollo humano alto. Ademas podemos decir que del total de paises algo mas de la mitad tienen valores altos o muy altos en este indice.
+
+
+```{r}
+ggplot(data = idh, aes(x = HDI_CAT, y = `Total Ecological Footprint`, color = HDI_CAT)) +
+    geom_boxplot() +
+   ggtitle("Modelo Boxplot de Comparación") + 
+   theme(plot.title = element_text(hjust = 0.5)) + 
+            labs(x = "Categorias Indice Desarrollo Humano", y = "Huella Ecológica Total")
+```
+
+- Lo primero que llama la atencion, es que los valores de huella ecólogica aumentan con los valores de Idh. Otra situacion destacable, es que el rango intercuartilico de aquellos paises que se encuentran con valores muy altos de HDI, es mucho mayor que en el resto de niveles, lo que indica mucha variabilidad para valores muy altos, lo contrario que ocurre para valores bajos, cuyos valores se concentran mucho mas proximos a la media.
+
+```{r}
+ggplot(data = idh, aes(x = HDI_CAT, y = `Total Biocapacity`, color = HDI_CAT)) +
+    geom_boxplot() +
+   ggtitle("Modelo Boxplot de Comparación") + 
+   theme(plot.title = element_text(hjust = 0.5)) + 
+            labs(x = "Categorias Indice Desarrollo Humano", y = "Biocapacidad Total")
+```
+
+- Si se analiza este gráfico, encontramos algo llamativo. El rango intercuartilico no varía significativamente para ninguna de las categorias de indice de desarrollo humano. Por tanto, se puede decir que no hay una relacion plausible entre niveles de biocapcidad altos y indice de desarrollo humano alto o muy alto, por tanto de confirmarse que a mayor indice de desarrollo humano, mayor requerimiento ecológico, independiente de la biocapacidad, esta sería una prueba mas de que el modelo de desarrollo mundial no es el adecuado. Ya que el modelo de desarrollo actual no parece tener en cuenta una variable como la biocapacidad. 
+
+```{r}
+ggplot(data = idh, aes(x = HDI_CAT, y = `Biocapacity Deficit or Reserve` , color = HDI_CAT)) +
+    geom_boxplot() +
+   ggtitle("Modelo Boxplot de Comparación") + 
+   theme(plot.title = element_text(hjust = 0.5)) + 
+            labs(x = "Categorias Indice Desarrollo Humano", y = "Deficit Ecologico")
+```
+
+- Aqui podemos encontrar una relación inversa con el nivel de desarrollo humano para esta variable. Atendiendo a su definición, parece que a mayores niveles de desarrollo, mayor es el deficit ecológico. Por eso el rango intercuartilico de los valores altos y muy altos de este índice, se encuentra por debajo del 0. Dicho de otra manera, el deficit (medio en numeros negativos, aparece para indices de desarrollo alto o muy alto, y algunos valores del medio). Por otro lado, parece ser que un índice de desarrollo bajo, tiene asociado un deficit ecológico positivo. 
+
+
+```{r}
+ggplot(data = idh, aes(x = HDI_CAT, y = `Earths Required`, color = HDI_CAT)) +
+    geom_boxplot() +
+   ggtitle("Modelo Boxplot de Comparación") + 
+   theme(plot.title = element_text(hjust = 0.5)) + 
+            labs(x = "Categorias Indice Desarrollo Humano", y = "Tierras Requeridas")
+```
+
+```{r}
+   ggplot(data = idh, aes(x = HDI, y = Poblacion, color = Region)) +
+    geom_point() +
+   ggtitle("Poblacion Vs Indice de Desarrollo Humano") + 
+   theme(plot.title = element_text(hjust = 0.5)) + 
+            labs(x =  "Indice Desarrollo Humano", y = "Poblacion")
+```
+- Podria haber sido intuitivo pensar, que la población podria hacer variar el indice de desarrollo humano, pero no parece hacerlo. Sin embargo, esta gráfica nos permite ver la anomalia poblaciónal que significan la India y China respectivamente, la mayoria del planeta concentra sus números poblaciones en el mismo rango exceptuando estos dos paises.
+
+```{r}
+ggplot(data = idh, aes(x = HDI_CAT, y = PibPerCap_, color = HDI_CAT)) +
+    geom_boxplot() +
+   ggtitle("Modelo Boxplot de Comparación") + 
+   theme(plot.title = element_text(hjust = 0.5)) + 
+            labs(x = "Categorias Indice Desarrollo Humano", y = "Pib per Capita")
+```
+
+- De manera similar a lo ocurrido con la huella ecólogica, podemos ver como a mayor valores del indice de desarrolo humano mayor es el Pib per Capita. Otra vez llama la atencion la alta variabilidad mostrada por la caja que representa el valor de Idh muy alto. Y como para los demás valores, dicha variabilidad no es tan pronunciada. El caso extremo es para indices bajos, donde la mayoria de los datos estan concentrados alrededor de la media. Suponiendo pocas diferencias en los PIB de estos paises con bajo nivel de Idh. 
+
+```{r}
+ggplot(idh) +
+   geom_histogram(mapping = aes(HDI, fill = Region), binwidth = 0.01) +
+   ggtitle("Indice de Desarrollo Humano por Región") +
+   labs(x = "Indice Desarrollo Humano", fill = "Regiones", y = "Paises por Región")
+```
+
+- Otra visualización interesante, es ver como se distribuye por regiones los valores de **Indice de Desarrollo Humano**, lo primero que llama la atención, es que no hay ningun pais de america del norte, ni de la Union Europea con valores por debajo del 0,7, en la situación opuesta se encuentra Africa, donde apenas hay paises por encima de un nivel bajo-medio de indice de desarrollo humano.
+
+- A partir de aquí, a través de análisis visual, y otros tipo de test, vamos a intentar averiguar que tipo de distribución siguen las variables que estamos estudiando.
+
+**Una vez ya habiamos hecho la exploración de manera individualizada para cada variable, se descubrio existen formas automatizadas de hacer visualizaciones" añadimos dichas visualizaciones aqui abajo**.
+
+```{r}
+variable.objetivo2 <- function(dataframe.object, target.feature){
+  
+  for (columna in 3:ncol(dataframe.object)){
+    
+    if (names(dataframe.object[columna]) == "HDI_CAT"){
+      next
+      
+    } else {
+      if (class(dataframe.object[, columna]) == "factor"){
+        plotidh1 <- ggplot(dataframe.object) + 
+          geom_bar(aes(dataframe.object[, columna], fill = as.factor(target.feature))) + 
+          labs(title=paste(names(dataframe.object[columna]), " ~ HDI_CAT")) + 
+          xlab(names(dataframe.object[columna])) + 
+          ylab("Frecuencia") +
+          scale_fill_discrete(name="Indice Desarrollo Humano", breaks=c("0.55", "0.70", "0.80", "1"),
+                           labels=c("Bajo", "Medio", "Alto", "Muy Alto"))
+      
+      } else {
+        plotidh1 <- ggplot(dataframe.object) + 
+          geom_boxplot(aes(dataframe.object[, columna], fill = as.factor(target.feature))) + 
+          coord_flip() +
+          labs(title=paste(names(dataframe.object[columna]), " ~ HDI_CAT")) + 
+          xlab(names(dataframe.object[columna])) + 
+          scale_fill_discrete(name="Indice Desarrollo Humano", breaks=c("0.55", "0.70", "0.80", "1"),
+                           labels=c("Bajo", "Medio", "Alto", "Muy Alto"))
+      }
+      plotidh <- print(plotidh1)
+    }
+  }
+}
+
+variable.objetivo2(dataframe.object = idh, target.feature = idh$HDI_CAT)
+```
+
+Estudio de normalidad 
+
+```{r}
+for (columna in 3:ncol(idh)){
+  if (class(idh[,columna]) != "factor"){
+    plot(density(idh[, columna]), 
+         col = "orange", 
+         las = 1,
+         main = paste("Distribucion: ", colnames(idh[columna])),
+         xlab  = colnames(idh[columna]))
+  }
+}  
+```
+
+- Función de densidad de la variable HDI, que a simple vista no parece provenir de una muestra o de una población con distribución normal.
+
+- Función de densidad de la variable Total Ecological Footprint, que tampoco parece provenir de una distribucion normal. Mas bien parece una distribucion asimetrica.
+
+- Función de densidad de la variable Bicocapacidad total, que tampoco parece provenir de una distribucion normal. Mas bien parece una distribución asimetrica.
+
+- Función de densidad de la variable Tierras requeridas. Llama la atención que esta función de densidad sigue una distribución identica a la que siga la huella ecológica. Aunque luego se comprobara estudiando la relación de estas variables, podemos intuir que al ser variables de requerimiento, ambas siguen una metodología de calculo similar, y es posible que expresen cosas similares.
+
+- Función de densidad de la variable Población, que tampoco parece provenir de una distribucion normal. Mas bien parece una distribución asimetrica.
+
+- Función de densidad de la variable Pib per Capita, que tampoco parece provenir de una distribucion normal. Mas bien parece una distribución asimetrica.
+
+- Gracias a la busqueda blibiográfica, podemos utilizar una función capaz de pintar un histograma con las funciones de densidad.Vamos a crear dicha visualización para todas las variables de interes. https://r-coder.com/histograma-r/
+
+```{r}
+histDenNorm <- function (x, ...) {
+   hist(x, ...) # Histograma
+   lines(density(x), col = "blue", lwd = 2) # Densidad
+   x2 <- seq(min(x), max(x), length = 172)
+   f <- dnorm(x2, mean(x), sd(x))
+   lines(x2, f, col = "red", lwd = 2) # Normal
+   legend("topright", c("Histograma", "Densidad", "Normal"), box.lty = 0,
+          lty = 1, col = c("black", "blue", "red"), lwd = c(1, 2, 2))
+}
+```
+
+- En este caso no hemos intentado hacer un bucle para la visualización, debido a que se necesitan ir cambiando la escala de los gráficos para visualizarlos correctamente. Y tampoco se utiliza la funcion par(), ya que no ayuda a la visualización.
+
+```{r}
+
+histDenNorm(idh$HDI, prob = TRUE, main = "Histograma de las medias de el Indice de Desarrollo Humano", xlab = "Indice de Desarrollo Humano")
+
+histDenNorm(idh$`Total Ecological Footprint`, prob = TRUE, main = "Histograma de las medias de la Huella Ecológica", xlab = "Huella Ecológica", ylim = c(0, 0.25), xlim = c(0,20))
+
+histDenNorm(idh$`Total Biocapacity`, prob = TRUE, main = "Histograma de las medias de biocapacidad", xlab = "Biocapacidad", ylim = c(0, 0.35), xlim = c(0, 100))
+
+histDenNorm(idh$`Earths Required`, prob = TRUE, main = "Histograma de las medias de tierras requeridas", xlab = "Tierras Requeridas", ylim = c(0, 0.40), xlim = c(0,10))
+
+histDenNorm(idh$Poblacion, prob = TRUE, main = "Histograma de las medias de Poblacion", xlab = "Población")
+
+histDenNorm(idh$PibPerCap_, prob = TRUE, main = "Histograma de las medias de PibPerCapita", xlab = "PibPerCapita")
+
+histDenNorm(idh$`Biocapacity Deficit or Reserve`, prob = TRUE, main = "Histograma de las medias de Deficit Ecólogico", xlab = "Deficit Ecológico")
+```
+
+ *Tras comprobar de manera visual, vamos a proceder a realizar diferentes tests para confirmar que efectivamente las variables del estudio, no siguen una distribución normal.*
+
+- Se utiliza un Shapiro test, sin necesidad de coger un numero determinado de valores, ya que el data frame cuenta con 172, y este test da resultado entre 3 y 5000.
+
+```{r}
+valores <- idh %>% dplyr::select("Poblacion", "HDI","Total Ecological Footprint", "Total Biocapacity", "Biocapacity Deficit or Reserve", "Earths Required", "PibPerCap_")
+
+sapply(valores, function(x) round(shapiro.test(x)$p.value,2))
+```
+
+
+- La decisión de usar este test, se debe a que salvo error, otros test conocidos como **Chi-Cuadrado** o **Kologomov-Smirnov** parecen ajustarse peor para ver si la distribucion de las diferentes es variables es normal. Como se puede ver, en todos los casos el p-value es muy inferior a los niveles de significación, por tanto si:
+
+**H0: La distribución es normal.**
+**H1: La distribución no es normal,**
+
+Hay suficientes evidencias para rechazar la hipotesis nula, y por tanto ninguna de las variables parece seguir una distribución normal.
+
+- A partir de aquí, y para evitar que el futuro modelo de regresión se adecue bien a analizar nuestros datos, o otras pruebas que queramos hacer, vamos a hacer dos cosas:
+
+1. Visualización de la posible relación entre las diferentes variables.
+2. Normalización de las variables y comrpobación posterior a traves de la visualización de la relación lineal para ver posibles variaciones.
+
+```{r}
+idh.cor <- idh %>%dplyr:: select("Poblacion", "HDI","Total Ecological Footprint", "Total Biocapacity", "Biocapacity Deficit or Reserve", "Earths Required", "PibPerCap_")
+mat.idh.cor <- cor(idh.cor, method = "pearson")
+round(mat.idh.cor, 6)
+corrplot(mat.idh.cor, tl.srt = 45, method = "number", addshade = "all", type = "upper")
+```
+- **HDI VS TOTAL ECOLOGICAL FOOTPRINT** - Como se puede observar la correlación entre estas dos variables es alta, por tanto podemos empezar a intuir que existe una variación sistematica de una frente a la otra.
+
+- **HDI VS TIERRAS REQUERIDAS** - La relacion entre la cantidad de tierras requeridas y la huella ecológica total es total como era de esperar. Esto se debe a que el requerimiento ecológico que marca la huella total se transforma en cantidad de tierras atendiendo a este requerimiento, por eso la variable tiene una relacion similar con el HDI.
+
+- **HDI VS PibPerCap** - La relación entre estas dos variables es muy interesante. Al ser positiva, podriamos decir que existe una variación sistemática de estas dos variables, lo cual explicaría como el PIB esta intimamente ligado al nivel de desarrollo que vendría a expresar el HDI. A su vez, la huella ecólogica total estaría también muy relacionada con el PibPerCap, lo que indicaría que a mayor Pib, mayor requerimiento ecólogico de los paises..
+
+- No existe relación aparente de las demas variables con el indice de desarrollo humano..
+
+- Podriamos añadir que puede existir cierta coolinealidad entre el total de biocapacidad y el deficit ecólogico, por tanto en una análisis de regresión lineal multiple, seria necesario tener esto en cuenta.
+
+```{r}
+
+ggplot(idh, aes(HDI, `Total Ecological Footprint`)) +
+  geom_point(col = "red") +
+  stat_smooth() +
+  ggtitle("Idh VS Huella Ecologica") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+          labs(x = "Indice de Desarrollo Humano", y = "Huella Ecologica")
+
+ggplot(idh, aes(HDI, `Total Biocapacity`)) +
+  geom_point(col = "green") +
+  stat_smooth() +
+  ggtitle("Idh VS Biocapacidad Total") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+          labs(x = "Indice de Desarrollo Humano", y = "Biocapacidad Total")
+
+ggplot(idh, aes(HDI, `Earths Required`)) +
+  geom_point(col = "orange") +
+  stat_smooth() +
+  ggtitle("Idh VS Tierras Requeridas") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+          labs(x = "Indice de Desarrollo Humano", y = "Tierras Requeridas")
+
+ggplot(idh, aes(HDI, `Biocapacity Deficit or Reserve`), col = "red") +
+  geom_point(col = "black") +
+  stat_smooth() +
+  ggtitle("Idh VS Deficit Ecologico") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+          labs(x = "Indice de Desarrollo Humano", y = "Deficit Ecologico")
+
+ggplot(idh, aes(HDI, Poblacion), col = "red") +
+  geom_point(col = "brown") +
+  stat_smooth() +
+  ggtitle("Idh VS Poblacion") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+          labs(x = "Indice de Desarrollo Humano", y = "Población")
+
+ggplot(idh, aes(HDI, PibPerCap_), col = "red") +
+  geom_point(col = "brown") +
+  stat_smooth() +
+  ggtitle("Idh VS PibPerCap") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+          labs(x = "Indice de Desarrollo Humano", y = "PibPerCap")
+
+
+```
+
+- Es necesario tener en cuenta que la huella ecológica es la superficie total de tierra medida en hectareas productivas necesarias para producir los recursos consumidos por el ciudadano medio de un pais, esto en suma da una medida de cuantas tierras necesitaria un pais, si todo el mundo consumiera como lo hacen sus ciudadanos medios. Por tanto, es logico encontrar una  relación entre ambas variables, refiriendonos a **Huella Ecologica Total** con la **Cantidad de Tierras Requeridas**, y estas a su vez con el **HDI**
+
+-La biocapacidad total sin embargo, es la capacidad que tiene cierta area especifica, en este caso volveremos a utilizar pais, de abastacer regularmente a dicho pais y además de absorber los residuos resultantes de dicho consumo, por esta razón la relación con las demas variables ya no es tan estrecha, debido a que el requerimiento no condiciona la capacidad de cubrir ese requerimiento, y de ahí su escasa relación.
+
+- Una de las posibilidades para que los modelos de regresión con estas variables sean mas robustos, es normalizar dichas variables. 
+
+```{r}
+IdhNorm <- scale(idh$`Total Ecological Footprint`, center = T, scale = T)
+TotEcFootNorm <- scale(idh$`Total Ecological Footprint`, center = T, scale = T)
+TotBiocapacityNorm <- scale(idh$`Total Biocapacity`, center = T, scale = T)
+TotEarthReqNorm <- scale(idh$`Earths Required`, center = T, scale = T)
+TotDefBiocResNorm <- scale(idh$`Biocapacity Deficit or Reserve`, center = T, scale = T)
+TotPobNorm <- scale(idh$Poblacion, center = T, scale = T)
+TotPibPerNorm <- scale(idh$PibPerCap_, center = T, scale = T)
+idh_norm <- data.frame(IdhNorm, TotEcFootNorm, TotEarthReqNorm, TotDefBiocResNorm, TotPobNorm, TotPibPerNorm)
+```
+
+- Tras la normalización, vamos a ver si la relación lineal de las variables ha cambiado a través de una visualización.
+
+```{r}
+par(mfrow = c(2,3))
+
+plot(IdhNorm , TotEcFootNorm, main = "Relación Lineal", col = "orange", ylab = "Huella Ecologica Total", xlab= "Indice de Desarrollo Humano")
+abline(lm(IdhNorm ~TotEcFootNorm))
+
+plot(IdhNorm , TotBiocapacityNorm, main = "Relación Lineal", col = "blue", ylab = "Biocapacidad", xlab= "Indice de Desarrollo Humano")
+abline(lm(IdhNorm ~TotBiocapacityNorm))
+
+plot(IdhNorm, TotEarthReqNorm, main = "Relación Lineal", col = "green", ylab = "Tierras Requeridas", xlab= "Indice de Desarrollo Humano")
+abline(lm(IdhNorm ~TotEarthReqNorm))
+
+plot(IdhNorm, TotDefBiocResNorm, main = "Relación Lineal", col = "green", ylab = "Deficit Ecólogico", xlab= "Indice de Desarrollo Humano")
+abline(lm(IdhNorm~TotDefBiocResNorm))
+
+plot(IdhNorm, TotPobNorm, main = "Relación Lineal", col = "green", ylab = "Población", xlab= "Indice de Desarrollo Humano")
+abline(lm(IdhNorm~TotPobNorm))
+
+plot(IdhNorm, TotPibPerNorm, main = "Relación Lineal", col = "green", ylab = "PibPerCap", xlab= "Indice de Desarrollo Humano")
+abline(lm(IdhNorm~TotPibPerNorm))
+```
+
+```{r}
+idh_model <- idh
+idh_model$HDI_CAT <- NULL
+idh_model$Country <- NULL
+idh_model$Region <- NULL
+```
+
+- Modelo de seleccion de variables stepAic, sin normalizar
+
+```{r}
+fit.1 <- glm(HDI~., data=idh_model, family= gaussian)
+fit.0 <- glm(HDI~1, data=idh, family= gaussian)
+step <- stepAIC(fit.0,direction="both",scope=list(upper=fit.1,lower=fit.0))
+step$formula
+p_qqplot <- step$residuals
+qqPlot(p_qqplot, distribution = "norm")
+```
+- Modelo de selección de variables stepAic normalizadas
+
+```{r}
+fit.3 <- glm(IdhNorm~., data=idh_norm, family= gaussian)
+fit.2 <- glm(IdhNorm~1, data=idh_norm, family= gaussian)
+step2 <- stepAIC(fit.2,direction="both",scope=list(upper=fit.3,lower=fit.2))
+step2$formula
+p_qqplot2 <- step2$residuals
+qqPlot(p_qqplot2, distribution = "norm")
+```
+
+Conclusiones 
+
+- Nuestra variable HDI tiene relación con la **Huella Ecologica**, la **Cantidad de tierras Requeridas** y el **Pib per Capita**. Es decir existe cierta asociación en la que mayor Huella Ecológica, y mayor Pib en los diferentes paises, parece conllevar mayor Indice de desarrollo Humano. Esto vendria a demostrar nuestra tesis de que el modelo de desarrollo actual que otorga altos niveles de Indice de Desarrollo Humano, y por ende, altos niveles perse de desarrollo necesitan unos altos requerimientos ecológicos. Lo mismo vendria a ocurrir con el Pib.
+
+- Nuestra variable HDI_CAT, parece mostrar lo mismo que lo descrito en el punto anterior a través de la visualizacion.
+
+- Nuestras variables no siguen un distribución normal, por lo que ha sido necesario normalizarlas. Al normalizarlas el resultado obtenido tanto para el modelo stepAic y para la relación lineal, viene a indicar lo mismo.
+
+- Como se sospechaba nuestro modelo StepAic ha considerado las variables que parecian tener relación con nuestra variable HDI en el analisis exploratorio.
+
+
+#### PASO 3. 
+
+3.1 Encontrar las técnicas más apropiadas para corroborar las preconclusiones con la ayuda de un mapa.
+3.2 Diseñar la metodología de análisis.
+3.3 Aplicar esta metodología.
+3.4 Resumir los resultados.
+
+3.1. A partir de aquí utilizaremos diferentes técnicas para demostrar la relación entre las dos variables especficadas que hemos advertido con los analisis anteriores. Ademas haremos una comparación multivariable con las otras dos variables que nos hemos permitido comparar durante nuestro estudio.  
+
+```{r}
+summary(aov(idh$`Total Ecological Footprint`~idh$HDI_CAT))
+```
+
+El p-valor está muy por debajo de p = 0.05, por tanto tenemos evidencias suficientes para rechazar la hipotesis nula. En tal caso se podria afirmar que los valores de Huella Ecólogica Total, cambian segun los diferentes niveles de Indice de Desarrollo Humano. Dicho de otra forma, la huella ecológica varía segun el nivel de desarrollo humano de cada pais.
+
+```{r}
+summary(aov(TotEcFootNorm~idh$HDI_CAT))
+```
+
+El p-valor con la variable normalizada es exactamente el mismo.
+
+```{r}
+summary(aov(idh$PibPerCap_~idh$HDI_CAT))
+```
+
+El p-valor está muy por debajo de p = 0.05, por tanto tenemos evidencias suficientes para rechazar la hipotesis nula. En tal caso se podria afirmar que los valores de PibPerCap_, cambián según los diferentes niveles de Indice de Desarrollo Humano. Dicho de otra forma, el Pib per Capita tiene una variación cuando los niveles de HDI aumentan.
+
+
+```{r}
+bartlett.test(idh$`Total Ecological Footprint` ~ idh$HDI_CAT)
+```
+
+- Se podría hacer este test de varianzas, que es muy sensible cuando la muestra proviene de una distribución normal. Al hacer el test, se encuentran diferencias significativas entre las varianzas de los diferentes niveles. 
+
+
+```{r}
+mod_inicial <- glm(HDI~ `Total Ecological Footprint`+ `Biocapacity Deficit or Reserve` + `Earths Required` + `Total Biocapacity`  + PibPerCap_ + Poblacion,
+                     data = idh,
+                        family = gaussian)
+
+summary(mod_inicial)
+```
+
+```{r}
+mod_inicial_norm <- glm(IdhNorm~ TotEcFootNorm + TotBiocapacityNorm + TotEarthReqNorm + TotPobNorm + TotDefBiocResNorm + TotPibPerNorm,
+                     data = idh_norm,
+                        family = gaussian)
+
+summary(mod_inicial_norm)
+```
+
+```{r}
+mod_final <- glm(HDI~ `Total Ecological Footprint` + PibPerCap_,
+                     data = idh,
+                        family = gaussian)
+
+summary(mod_final)
+```
+
+
+```{r}
+mod_final_norm <- glm(IdhNorm~ TotEcFootNorm,
+                     data = idh,
+                        family = gaussian)
+
+summary(mod_final_norm)
+```
+
+- Como podemos ver en el modelo planteado, la variable que se venia sospechando tras el EDA y la visualización que tenia una fuerte relación con el HDI, ha resultado la unica que nos ha quedado como valida en el glm. Es cierto, que sin normalizar las variables, el modelo tambien ha considerado el PibPerCapita. Las posibles explicaciones las veremos en las conclusiones finales del estudio.
+
+
+Conclusiones del estudio
+
+Tras analizar detenidamente nuestro data set, a través del EDA, la inferencia y la creación de los modelos, se pueden sacar varias conclusiones.
+
+1. Se rechaza la HO planteada al inicio del experimiento, donde se intentaba demostrar si la variable Huella Ecólogica Total, tenia independencia del Indice de desarrollo Humano. No solo no la tiene, si no que el estudio viene a sugerir que los indices altos de desarrollo humano son sinonimo de un alto requerimiento ecológico, y por tanto, una alta huella ecologica.
+
+2. Se podrian haber analizado las demas variables que sacamos del estudio, pero el enfoque era intentar demostrar si el hdi y la huella ecólogica estaban intimamente relacionadas, por las conclusiones que se pueden sacar a partir de esto, de como es nuestro modelo de desarrollo económico y que consecuencias tiene.
+
+Por tanto, se pueden hacer una serie de aproximaciones.
+
+Si nuestro nivel de desarrollo tiene como consecuencia una ligadura a un alto requerimiento ecologico, y este desarrollo es desigual según regiones y paises, entonces se puede afirmar que el modelo de desarrollo economicoecologico es desigual. Además, al haber podido analizar el defici ecologico y la biocapcidad, se advierte que no existe relación entre estas variables y el nivel de desarrollo, por tanto, el nivel de desarrollo alto de muchos paises depende a nivel de requerimiento ecológico de paises que compensan dicho requerimiento con la biocapacidad de otros. Utilizando un ejemplo concreto, atendiendo a la biocapacidad y requerimiento de un pais como Luxemburgo, hace necesario que el requerimiento de otros paises, y por tanto su indice de desarrollo humano compense dicho exceso. De manera que se podría afirmar, que muchos paises no consumen recursos de su territorio, si no de otros territorios avocados a vivir en indices de desarrollo bajo, ya que para aumentar su indice de desarrollo deberan aumentar su requerimiento, y es planteable que el sistema no pueda con estos niveles de manera generalizada. Por tanto, se intuye se debería cambiar el modelo de desarrollo, o hacerlo mas respetuoso, o la mejor opción mas eficiente.
+
+Por otro lado, se podría sugerir que el modelo económico mundial no tiene todas las variables en cuenta que deberian ser sinonimo de desarrollo. El hecho de que el Pib tenga cierta relación con el indice de desarrollo humano y la huella ecólogica, y ser un valor alto de este a su vez sinonimo de desarrollo, indica, que no se esta teniendo en cuenta ni haciendo una medición realista de que variables deberian ser sinonimo de desarrollo. Ya que el requerimiento (infinito) contrasta con la biocapacidad (finita), que en terminos de diferencia conceptual son indicativo de que el planeta esta adquiriendo una deuda, que solo podra controlarse cuando verdaderamente se tengan en cuenta todas las variables que influyen en el desarrollo, que podriamos llamar, desarrollo real. En este desarrollo real se tendrian que tener en cuenta una serie de variables que no se tienen, entre ellas las ecológicas, asi, se evitaría que el idh este correlacionado con el. En esta linea han aparecido otros medidores de desarrollo alejados del tradicional Pib, como es el Indice de Progreso Genuino, el cual si tiene en cuenta entre muchas otras cosas las variables ecológicas de requerimiento.
+
+
